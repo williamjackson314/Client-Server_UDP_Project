@@ -43,10 +43,8 @@ int main(int argc, char *argv[]) {
 
   /* YOUR CODE HERE - construct Request message in msgBuf               */
   /* msgLen must contain the size (in bytes) of the Request msg         */
-  int offset = sizeof(struct header_t);
-  char *userMsg = "wtja222";
-  memcpy(&userMsg, &msgBuf[offset], sizeof(userMsg));
-
+  char *userMsg = "wtja222@wtja222.cs.uky.edu";
+  
   header_t client;
   client.magic = htons(270);
   client.length = htons(12 + sizeof(userMsg));
@@ -55,6 +53,8 @@ int main(int argc, char *argv[]) {
   client.result = 0;
   client.port = 0;
 
+  int offset = sizeof(client);
+  memcpy(&userMsg, &msgBuf[offset], sizeof(userMsg));
   memcpy(&client, &msgBuf, sizeof(client));
 
   msgLen = sizeof(userMsg);
@@ -70,8 +70,8 @@ int main(int argc, char *argv[]) {
   struct sockaddr_storage srvrAddr;
   socklen_t srvrAddrLen = sizeof(srvrAddr);
 
-  ssize_t numBytesRcvd = recvfrom(sock, msgBuf, MAXMSGLEN, 0, &srvrAddr, &srvrAddrLen);
-  
+  ssize_t numBytesRcvd = recvfrom(sock, msgBuf, MAXMSGLEN, 0, &srvrAddr, &srvrAddrLen); //not receiving anything from server
+
   /* 
   Need to implement retransmission logic 
   
@@ -87,7 +87,8 @@ int main(int argc, char *argv[]) {
   if (numBytesRcvd <0) dieWithError("recvfrom() failed");
 
   msgBuf[numBytesRcvd] = '0';
-  printf(msgBuf[offset]);
+ 
+  printf("Response message: %c", msgBuf[offset]);
 
   freeaddrinfo(servAddr);
 
