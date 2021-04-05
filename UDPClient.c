@@ -1,23 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <errno.h>
 #include "UDPCookie.h"
 
-#define TIMEOUT 3
+#define TIMEOUT_PERIOD 3
 #define LIMIT 5
+
+int sigalarm_flag;
+
+void sigalarm_handler(){
+
+  sigalarm_flag = 1;
+  printf("In signal handler\n"); fflush(stdout);
+
+}
 
 int main(int argc, char *argv[]) {
   char msgBuf[MAXMSGLEN];
   int msgLen = 0; // quiet the compiler
+  struct sigaction sigalarm_action;
 
   if (argc != 3) // Test for correct number of arguments
     dieWithError("Parameter(s): <Server Address/Name> <Server Port/Service>");
 
   char *server = argv[1];     // First arg: server address/name
   char *servPort = argv[2];
+
+/* Install SIGALRM signal handler */
+  sigalarm_action.sa_handler = sigalarm_handler;
+  if(sigemptyset(&sigalarm_action.sa_mask) < 0) dieWithError("\nsig empty set error");
+  if (sigaction(SIGALRM, &sigalarm_action, NULL) < 0) dieWithError("\nsig action error");
 
   // Tell the system what kind(s) of address info we want
   struct addrinfo addrCriteria;                   // Criteria for address match
@@ -43,23 +60,21 @@ int main(int argc, char *argv[]) {
 
   /* YOUR CODE HERE - construct Request message in msgBuf               */
   /* msgLen must contain the size (in bytes) of the Request msg         */
-  char *userMsg = "wtja222@wtja222.cs.uky.edu";
+ char *userMsg = "wtja222";
   
-  header_t client;
-  client.magic = htons(270);
-  client.length = htons(12 + sizeof(userMsg));
-  client.xactionid = 0xdeadbeef;
-  client.flags = 0x28;
-  client.result = 0;
-  client.port = 0;
+  header_t *msgptr = (header_t *) msgBuf;
+  msgptr->magic = htons(270);
+  msgptr->length = htons(12 + strlen(userMsg));
+  msgptr->xactionid = 0xdeadbeef;
+  msgptr->flags = 0x2A;
+  msgptr->result = 0;
+  msgptr->port = 0;  
 
-  int offset = sizeof(client);
-  memcpy(&userMsg, &msgBuf[offset], sizeof(userMsg));
-  memcpy(&client, &msgBuf, sizeof(client));
+  msgLen = strlen(userMsg) + sizeof(header_t);
+  int offset = sizeof(header_t);
+  memcpy(&msgBuf[offset], userMsg, strlen(userMsg));
 
-  msgLen = sizeof(userMsg);
-
-  ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
+ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
 			    servAddr->ai_addrlen);
   if (numBytes < 0)
     dieWithSystemError("sendto() failed");
@@ -68,27 +83,41 @@ int main(int argc, char *argv[]) {
 
   /* YOUR CODE HERE - receive, parse and display response message */
   struct sockaddr_storage srvrAddr;
-  socklen_t srvrAddrLen = sizeof(srvrAddr);
+  socklen_t srvrAddrLen = sizeof(struct sockaddr_storage);
+  int numBytesRcvd = 0;
 
-  ssize_t numBytesRcvd = recvfrom(sock, msgBuf, MAXMSGLEN, 0, &srvrAddr, &srvrAddrLen); //not receiving anything from server
-
-  /* 
-  Need to implement retransmission logic 
+  sigalarm_flag = 0;       
+  numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
+        servAddr->ai_addrlen);
+      if (numBytes < 0)
+        dieWithSystemError("sendto() failed");
+      else if (numBytes != msgLen)
+        dieWithError("sendto() returned unexpected number of bytes");
   
-  if (numBytesRcvd == 0){
-    numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
-			    servAddr->ai_addrlen);
-    if (numBytes < 0)
-      dieWithSystemError("sendto() failed");
-    else if (numBytes != msgLen)
-      dieWithError("sendto() returned unexpected number of bytes");
-  }
-  */
-  if (numBytesRcvd <0) dieWithError("recvfrom() failed");
+  //int count = 0;
+  //while (count < LIMIT){
+    alarm(TIMEOUT_PERIOD);
+    while ((sigalarm_flag == 0)){
+      
+      if ((numBytesRcvd = recvfrom(sock, msgBuf, MAXMSGLEN, 0, &srvrAddr, &srvrAddrLen)) < 0) {
+        numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
+          servAddr->ai_addrlen);
+        if (numBytes < 0)
+          dieWithSystemError("sendto() failed");
+        else if (numBytes != msgLen)
+          dieWithError("sendto() returned unexpected number of bytes");   
+        }
+    }
+    //count += 1;
 
-  msgBuf[numBytesRcvd] = '0';
+//}
+  // if (numBytesRcvd < 0){
+  //   dieWithSystemError("recvfrom() failed");
+  // }
+  
+  msgBuf[MAXMSGLEN] = '\0';
  
-  printf("Response message: %c", msgBuf[offset]);
+  printf("Response message: %s\n", &msgBuf[offset]);
 
   freeaddrinfo(servAddr);
 
