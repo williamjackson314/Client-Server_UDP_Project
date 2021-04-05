@@ -94,8 +94,10 @@ ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
       else if (numBytes != msgLen)
         dieWithError("sendto() returned unexpected number of bytes");
   
-  //int count = 0;
-  //while (count < LIMIT){
+  int count = 0;
+  
+  do{
+
     alarm(TIMEOUT_PERIOD);
     while ((sigalarm_flag == 0)){
       
@@ -108,19 +110,18 @@ ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
           dieWithError("sendto() returned unexpected number of bytes");   
         }
     }
-    //count += 1;
 
-//}
-  // if (numBytesRcvd < 0){
-  //   dieWithSystemError("recvfrom() failed");
-  // }
+    count += 1;
+} while ((count != LIMIT)); // may need to add && (numBytesRcvd < 0));
   
+  printf("%d", numBytesRcvd);
   msgBuf[MAXMSGLEN] = '\0';
  
+  printf("Result = %d\n", msgBuf[9]);
   printf("Response message: %s\n", &msgBuf[offset]);
 
   freeaddrinfo(servAddr);
 
   close(sock);
-  exit(0);
+  exit( 0);
 }
