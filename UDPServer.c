@@ -62,8 +62,23 @@ int main(int argc, char *argv[]) {
     /* YOUR CODE HERE:  parse & display incoming request message */
     header_t *msgptr = (header_t *) buffer;
     int offset = sizeof(header_t);
-    
-    /* Format message in order to display it */
+
+    if (msgptr->magic != 270){
+      msgptr->flags |=  0x1; //Set erro bit in flag byte of message
+    }
+    if ((msgptr->length < 16) || (msgptr->length > 512)){
+      msgptr->flags |=  0x1;
+    }
+    if ((msgptr->flags & 0x10) == 0){
+      msgptr->flags |=  0x1;
+    }
+    if (msgptr->result != 0){
+      msgptr->flags |=  0x1;
+    }
+    if (msgptr->port != 0){
+      msgptr->flags |=  0x1;
+    }
+    // Format message in order to display it
     int version = msgptr->flags >> 4;
     int flags = msgptr->flags & 0xff;
     buffer[MAXMSGLEN] = '\0';
@@ -83,10 +98,12 @@ int main(int argc, char *argv[]) {
     char *srvr_msg;
 
     if ((msgptr->flags & 0x1) == 1){
-      srvr_msg = 'Errors Detected';
-      buffer[offset] = srvr_msg;
+      srvr_msg = "Errors Detected";
     }
-
+    else {
+      srvr_msg = msgptr->port;
+      printf("Cookie = %s", &srvr_msg[0]);
+    }
 
     ssize_t numBytesSent = sendto(sock, buffer, numBytesRcvd, 0,
         (struct sockaddr *) &clntAddr, sizeof(clntAddr));

@@ -11,7 +11,7 @@
 #define TIMEOUT_PERIOD 3
 #define LIMIT 5
 
-int sigalarm_flag;
+sig_atomic_t sigalarm_flag;
 
 void sigalarm_handler(){
 
@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
   char msgBuf[MAXMSGLEN];
   int msgLen = 0; // quiet the compiler
   struct sigaction sigalarm_action;
+  sigset_t mask, prev;
 
   if (argc != 3) // Test for correct number of arguments
     dieWithError("Parameter(s): <Server Address/Name> <Server Port/Service>");
@@ -31,10 +32,15 @@ int main(int argc, char *argv[]) {
   char *server = argv[1];     // First arg: server address/name
   char *servPort = argv[2];
 
-/* Install SIGALRM signal handler */
+  /* Install SIGALRM signal handler */
   sigalarm_action.sa_handler = sigalarm_handler;
   if(sigemptyset(&sigalarm_action.sa_mask) < 0) dieWithError("\nsig empty set error");
   if (sigaction(SIGALRM, &sigalarm_action, NULL) < 0) dieWithError("\nsig action error");
+
+  /* Block all signals */
+  if (sigaddset(&mask, SIGALRM) < 0) dieWithError("\nsig add set error");
+  if (sigemptyset(&prev) < 0) dieWithError("\nsig empty set error");
+  if (sigprocmask(SIG_BLOCK, &mask, &prev) < 0) dieWithError("\nsig proc mask error");
 
   // Tell the system what kind(s) of address info we want
   struct addrinfo addrCriteria;                   // Criteria for address match
@@ -96,8 +102,8 @@ ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
   
   int count = 0;
   
-  do{
-
+  do {
+    
     alarm(TIMEOUT_PERIOD);
     while ((sigalarm_flag == 0)){
       
@@ -109,13 +115,17 @@ ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
         else if (numBytes != msgLen)
           dieWithError("sendto() returned unexpected number of bytes");   
         }
+
+      sigsuspend(&prev);
     }
 
+    sigalarm_flag = 0;
     count += 1;
-} while ((count != LIMIT)); // may need to add && (numBytesRcvd < 0));
+    
+} while ((count != LIMIT) && (numBytesRcvd < 0));
   
-  printf("%d", numBytesRcvd);
-  msgBuf[MAXMSGLEN] = '\0';
+  printf("Num Bytes received = %d\n", numBytesRcvd);
+  msgBuf[numBytesRcvd] = '\0';
  
   printf("Result = %d\n", msgBuf[9]);
   printf("Response message: %s\n", &msgBuf[offset]);
