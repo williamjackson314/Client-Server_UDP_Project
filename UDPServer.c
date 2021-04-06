@@ -62,30 +62,18 @@ int main(int argc, char *argv[]) {
     /* YOUR CODE HERE:  parse & display incoming request message */
     header_t *msgptr = (header_t *) buffer;
     int offset = sizeof(header_t);
-
-    if (msgptr->magic != 270){
-      msgptr->flags |=  0x1; //Set erro bit in flag byte of message
-    }
-    if ((msgptr->length < 16) || (msgptr->length > 512)){
-      msgptr->flags |=  0x1;
-    }
-    if ((msgptr->flags & 0x10) == 0){
-      msgptr->flags |=  0x1;
-    }
-    if (msgptr->result != 0){
-      msgptr->flags |=  0x1;
-    }
-    if (msgptr->port != 0){
-      msgptr->flags |=  0x1;
-    }
+    int err_no;
+    
     // Format message in order to display it
     int version = msgptr->flags >> 4;
-    int flags = msgptr->flags & 0xff;
-    buffer[MAXMSGLEN] = '\0';
-
+    int flags = msgptr->flags & 0xf;
+    int magic = ntohs(msgptr->magic); //convert byte order from message
+    int length = ntohs(msgptr->length);
+    buffer[numBytesRcvd] = '\0';
+    
     /* Display values of the received message */
-    printf("magic=%d\n", msgptr->magic);
-    printf("length=%d\n", msgptr->length);
+    printf("magic=%d\n", magic);
+    printf("length=%d\n", length);
     printf("xid=%x\n", msgptr->xactionid); //Seperate into 4 bytes with spaces in between
     printf("version=%d\n", version);
     printf("flags=%x\n", flags);
@@ -93,17 +81,49 @@ int main(int argc, char *argv[]) {
     printf("port=%d\n", msgptr->port);
     printf("variable part=%s\n", &buffer[offset]);
 
+    /* Check for formatting errors */
+    if (magic != 270){
+      msgptr->flags |=  0x1; //Set error bit in flag byte of message
+      err_no = 1;
+    }
+    if ((length < 16) || (length > 512)){
+      msgptr->flags |=  0x1;
+      err_no = 2;
+    }
+    if ((msgptr->flags & 0x2) == 0){
+      msgptr->flags |=  0x1;
+      err_no = 3;
+    }
+    if (msgptr->result != 0){
+      msgptr->flags |=  0x1;
+      err_no = 4;
+    }
+    if (msgptr->port != 0){
+      msgptr->flags |=  0x1;
+      err_no = 5;
+    }
 
     /* YOUR CODE HERE:  construct Response message in buffer, display it */
-    char *srvr_msg;
-
+    memset(&buffer[offset], '\0', (numBytesRcvd - offset));
+    char srvr_msg[MAXMSGLEN];
+    /* Things to check for cookie
+    1. IP Address
+    2. Port Number
+    3. Length
+    4. Version
+    */
+    printf("Test Line 1\n");
     if ((msgptr->flags & 0x1) == 1){
-      srvr_msg = "Errors Detected";
+      printf("Error Detected: Number %d\n", err_no);
+      //srvr_msg[0] = "Errors Detected";
     }
     else {
-      srvr_msg = msgptr->port;
-      printf("Cookie = %s", &srvr_msg[0]);
+      printf("Test Line 2\n");
+      sprintf(srvr_msg, "%d_%d", version, length);
+      printf("Cookie = %s\n", &srvr_msg[0]);
     }
+
+    memcpy(&buffer[offset], srvr_msg, strlen(srvr_msg));
 
     ssize_t numBytesSent = sendto(sock, buffer, numBytesRcvd, 0,
         (struct sockaddr *) &clntAddr, sizeof(clntAddr));

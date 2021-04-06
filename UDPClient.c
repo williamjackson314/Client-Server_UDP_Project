@@ -93,13 +93,6 @@ ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
   int numBytesRcvd = 0;
 
   sigalarm_flag = 0;       
-  numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
-        servAddr->ai_addrlen);
-      if (numBytes < 0)
-        dieWithSystemError("sendto() failed");
-      else if (numBytes != msgLen)
-        dieWithError("sendto() returned unexpected number of bytes");
-  
   int count = 0;
   
   do {
@@ -121,7 +114,7 @@ ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
 
     sigalarm_flag = 0;
     count += 1;
-    
+
 } while ((count != LIMIT) && (numBytesRcvd < 0));
   
   printf("Num Bytes received = %d\n", numBytesRcvd);
