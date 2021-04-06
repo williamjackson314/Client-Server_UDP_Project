@@ -112,15 +112,13 @@ int main(int argc, char *argv[]) {
     3. Length
     4. Version
     */
-    printf("Test Line 1\n");
     if ((msgptr->flags & 0x1) == 1){
       printf("Error Detected: Number %d\n", err_no);
       char err_msg[16] = "Errors_Detected";
       memcpy(&srvr_msg[0], err_msg, 16);
     }
     else {
-      printf("Test Line 2\n");
-      sprintf(srvr_msg, "%d_%d", version, length);
+      sprintf(srvr_msg, "%d_%d", version, length); //Need to add part for IP address and port
       printf("Cookie = %s\n", &srvr_msg[0]);
     }
 
