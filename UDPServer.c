@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* YOUR CODE HERE:  construct Response message in buffer, display it */
-    memset(&buffer[offset], '\0', (numBytesRcvd - offset));
+    memset(&buffer[offset], 0, (numBytesRcvd - offset));
     char srvr_msg[MAXMSGLEN];
     /* Things to check for cookie
     1. IP Address
@@ -115,7 +115,8 @@ int main(int argc, char *argv[]) {
     printf("Test Line 1\n");
     if ((msgptr->flags & 0x1) == 1){
       printf("Error Detected: Number %d\n", err_no);
-      //srvr_msg[0] = "Errors Detected";
+      char err_msg[16] = "Errors_Detected";
+      memcpy(&srvr_msg[0], err_msg, 16);
     }
     else {
       printf("Test Line 2\n");
@@ -123,9 +124,10 @@ int main(int argc, char *argv[]) {
       printf("Cookie = %s\n", &srvr_msg[0]);
     }
 
+    int msgLen = strlen(srvr_msg) + sizeof(header_t);
     memcpy(&buffer[offset], srvr_msg, strlen(srvr_msg));
 
-    ssize_t numBytesSent = sendto(sock, buffer, numBytesRcvd, 0,
+    ssize_t numBytesSent = sendto(sock, buffer, msgLen, 0,
         (struct sockaddr *) &clntAddr, sizeof(clntAddr));
     if (numBytesSent < 0)
       dieWithSystemError("sendto() failed)");
