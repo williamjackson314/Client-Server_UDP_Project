@@ -63,6 +63,12 @@ int main(int argc, char *argv[]) {
     header_t *msgptr = (header_t *) buffer;
     int offset = sizeof(header_t);
     int err_no;
+    char hostBuf[NI_MAXHOST], serviceBuf[NI_MAXSERV];
+    
+    int rtnVal = getnameinfo((struct sockaddr *) &clntAddr, clntAddrLen, &hostBuf, sizeof(hostBuf), 
+        &serviceBuf, sizeof(serviceBuf), NI_NUMERICHOST | NI_NUMERICSERV);
+    if (rtnVal < 0)
+      dieWithError("getnameinfo() failed");
     
     // Format message in order to display it
     int version = msgptr->flags >> 4;
@@ -80,6 +86,8 @@ int main(int argc, char *argv[]) {
     printf("result=%d\n", msgptr->result);
     printf("port=%d\n", msgptr->port);
     printf("variable part=%s\n", &buffer[offset]);
+    printf("Address=%s\n", &hostBuf);
+    printf("Port=%s\n", &serviceBuf);
 
     /* Check for formatting errors */
     if (magic != 270){
@@ -90,41 +98,42 @@ int main(int argc, char *argv[]) {
       msgptr->flags |=  0x1;
       err_no = 2;
     }
-    if ((msgptr->flags & 0x2) == 0){
+    else if(length != numBytesRcvd){
       msgptr->flags |=  0x1;
       err_no = 3;
     }
-    if (msgptr->result != 0){
+    if ((msgptr->flags & 0x2) == 0){
       msgptr->flags |=  0x1;
       err_no = 4;
     }
-    if (msgptr->port != 0){
+    if (msgptr->result != 0){
       msgptr->flags |=  0x1;
       err_no = 5;
     }
-    if (length != numBytesRcvd){
+    if (msgptr->port != 0){
       msgptr->flags |=  0x1;
       err_no = 6;
     }
+
     /* YOUR CODE HERE:  construct Response message in buffer, display it */
     memset(&buffer[offset], '\0', (numBytesRcvd - offset));
     char srvr_msg[MAXMSGLEN];
-    /* Things to check for cookie
-    1. IP Address
-    2. Port Number
-    3. Length
-    4. Version
-    */
+    int addrLen = strlen(hostBuf); //length not counting null character
+    int portLen = strlen(serviceBuf);
+
+
     if ((msgptr->flags & 0x1) == 1){
       printf("Error Detected: Number %d\n", err_no);
       strcpy(srvr_msg, "Error Detected");
     }
     else {
-      sprintf(srvr_msg, "%d_%d", version, length); //Need to add part for IP address and port
-      printf("Cookie = %s\n", &srvr_msg[0]);
+      /* construct cookie using: IP Address, Port Number, Version, Length of request message */
+      memcpy(&srvr_msg[0], hostBuf, addrLen);
+      memcpy(&srvr_msg[addrLen], serviceBuf, portLen);
+      sprintf(&srvr_msg[addrLen + portLen], "%d|%d", version, length); //used to convert the two integers to strings
     }
 
-    int msgLen = strlen(srvr_msg) + sizeof(header_t);
+    int msgLen = strlen(srvr_msg) + sizeof(header_t); //total response message size
     memcpy(&buffer[offset], srvr_msg, strlen(srvr_msg));
 
     ssize_t numBytesSent = sendto(sock, buffer, msgLen, 0,
