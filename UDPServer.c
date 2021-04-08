@@ -62,7 +62,6 @@ int main(int argc, char *argv[]) {
     /* YOUR CODE HERE:  parse & display incoming request message */
     header_t *msgptr = (header_t *) buffer;
     int offset = sizeof(header_t);
-    int err_no;
     char hostBuf[NI_MAXHOST], serviceBuf[NI_MAXSERV];
     
     int rtnVal = getnameinfo((struct sockaddr *) &clntAddr, clntAddrLen, &hostBuf, sizeof(hostBuf), 
@@ -90,41 +89,63 @@ int main(int argc, char *argv[]) {
     printf("Port=%s\n", &serviceBuf);
 
     /* Check for formatting errors */
+    char err_buf[MAXMSGLEN];
+    char err_msg[MAXMSGLEN];
+    int errBufLen;
+    int errMsgLen;
+
     if (magic != 270){
       msgptr->flags |=  0x1; //Set error bit in flag byte of message
-      err_no = 1;
+      strcpy(err_msg, "bad magic number.");
+      errMsgLen = strlen(err_msg);
+      memcpy(&err_buf[0], err_msg, errMsgLen);
     }
     if ((length < 16) || (length > 512)){
       msgptr->flags |=  0x1;
-      err_no = 2;
+      strcpy(err_msg, "length too small or large.");
+      errBufLen = strlen(err_buf);
+      errMsgLen = strlen(err_msg);
+      memcpy(&err_buf[errBufLen], err_msg, errMsgLen);
     }
-    else if(length != numBytesRcvd){
+    if(length != numBytesRcvd){
       msgptr->flags |=  0x1;
-      err_no = 3;
+      strcpy(err_msg, "wrong length value.");
+      errBufLen = strlen(err_buf);
+      errMsgLen = strlen(err_msg);
+      memcpy(&err_buf[errBufLen], err_msg, errMsgLen);
     }
     if ((msgptr->flags & 0x2) == 0){
       msgptr->flags |=  0x1;
-      err_no = 4;
+      strcpy(err_msg, "bad request/response bit.");
+      errBufLen = strlen(err_buf);
+      errMsgLen = strlen(err_msg);
+      memcpy(&err_buf[errBufLen], err_msg, errMsgLen);
     }
     if (msgptr->result != 0){
       msgptr->flags |=  0x1;
-      err_no = 5;
+      strcpy(err_msg, "incorrect result value.");
+      errBufLen = strlen(err_buf);
+      errMsgLen = strlen(err_msg);
+      memcpy(&err_buf[errBufLen], err_msg, errMsgLen);
     }
     if (msgptr->port != 0){
       msgptr->flags |=  0x1;
-      err_no = 6;
+      strcpy(err_msg, "incorrect port value.");
+      errBufLen = strlen(err_buf);
+      errMsgLen = strlen(err_msg);
+      memcpy(&err_buf[errBufLen], err_msg, errMsgLen);
     }
 
     /* YOUR CODE HERE:  construct Response message in buffer, display it */
-    memset(&buffer[offset], '\0', (numBytesRcvd - offset));
+    memset(&buffer[offset], '\0', (numBytesRcvd - offset)); //Clear variable part of message
     char srvr_msg[MAXMSGLEN];
     int addrLen = strlen(hostBuf); //length not counting null character
     int portLen = strlen(serviceBuf);
 
-
+    // Write error message to variable part of response message
     if ((msgptr->flags & 0x1) == 1){
-      printf("Error Detected: Number %d\n", err_no);
-      strcpy(srvr_msg, "Error Detected");
+      errBufLen = strlen(err_buf);
+      memcpy(&srvr_msg[0], err_buf, errBufLen);
     }
     else {
       /* construct cookie using: IP Address, Port Number, Version, Length of request message */

@@ -26,11 +26,18 @@ int main(int argc, char *argv[]) {
   struct sigaction sigalarm_action;
   sigset_t mask, prev;
 
-  if (argc != 3) // Test for correct number of arguments
+  if ((argc != 3) && (argc != 4)) // Test for correct number of arguments
     dieWithError("Parameter(s): <Server Address/Name> <Server Port/Service>");
 
   char *server = argv[1];     // First arg: server address/name
   char *servPort = argv[2];
+  char *rqstPort; 
+  int rqstPortNum;
+
+  if (argc == 4){
+    rqstPort = argv[3]; //set the port number to put in request message
+    rqstPortNum = atoi(rqstPort);
+  }
 
   /* Install SIGALRM signal handler */
   sigalarm_action.sa_handler = sigalarm_handler;
@@ -66,18 +73,28 @@ int main(int argc, char *argv[]) {
 
   /* YOUR CODE HERE - construct Request message in msgBuf               */
   /* msgLen must contain the size (in bytes) of the Request msg         */
- char *userMsg = "wtja222";
-  
-  header_t *msgptr = (header_t *) msgBuf;
-  msgptr->magic = htons(270);
-  msgptr->length = htons(12 + strlen(userMsg));
-  msgptr->xactionid = 0xdeadbeef;
-  msgptr->flags = 0x2A;
-  msgptr->result = 0;
-  msgptr->port = 0;  
-
+  char *userMsg = "wtja222";
   msgLen = strlen(userMsg) + sizeof(header_t);
   int offset = sizeof(header_t);
+  header_t *msgptr = (header_t *) msgBuf;
+
+  if (argc == 4){
+    msgptr->magic = htons(270);
+    msgptr->length = htons(12 + strlen(userMsg));
+    msgptr->xactionid = 0xdeadbeef;
+    msgptr->flags = 0x2E;
+    msgptr->result = 0;
+    msgptr->port = rqstPortNum; 
+  }
+  else {
+    msgptr->magic = htons(270);
+    msgptr->length = htons(12 + strlen(userMsg));
+    msgptr->xactionid = 0xdeadbeef;
+    msgptr->flags = 0x2A;
+    msgptr->result = 0;
+    msgptr->port = 0;  
+  }
+
   memcpy(&msgBuf[offset], userMsg, strlen(userMsg));
 
 ssize_t numBytes = sendto(sock, msgBuf, msgLen, 0, servAddr->ai_addr,
