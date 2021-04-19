@@ -75,19 +75,26 @@ int main(int argc, char *argv[]) {
     int magic = ntohs(msgptr->magic); //convert byte order from message
     int length = ntohs(msgptr->length);
     buffer[numBytesRcvd] = '\0';
-    
+    int id_first, id_second, id_third, id_fourth;
+
+    // Separate the four bytes of id
+    id_first = (msgptr->xactionid & 0xff000000) >> 24;
+    id_second = (msgptr->xactionid& 0xff0000) >> 16;
+    id_third = (msgptr->xactionid & 0xff00) >> 8;
+    id_fourth = (msgptr->xactionid& 0xff);
+
     /* Display values of the received message */
     printf("magic=%d\n", magic);
     printf("length=%d\n", length);
-    printf("xid=%x\n", msgptr->xactionid); //Seperate into 4 bytes with spaces in between
+    printf("xid=%x %x %x %x\n", id_first, id_second, id_third, id_fourth); 
     printf("version=%d\n", version);
     printf("flags=%x\n", flags);
     printf("result=%d\n", msgptr->result);
     printf("port=%d\n", msgptr->port);
-    printf("variable part=%s\n", &buffer[offset]);
     printf("Address=%s\n", &hostBuf);
     printf("Port=%s\n", &serviceBuf);
-
+    printf("variable part=%s\n", &buffer[offset]);
+    
     /* Check for formatting errors */
     char err_buf[MAXMSGLEN];
     char err_msg[MAXMSGLEN];

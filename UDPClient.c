@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
   /* YOUR CODE HERE - construct Request message in msgBuf               */
   /* msgLen must contain the size (in bytes) of the Request msg         */
   char *userMsg = "wtja222";
-  msgLen = strlen(userMsg) + sizeof(header_t);
+  msgLen = strlen(userMsg) + 12;
   int offset = sizeof(header_t);
   header_t *msgptr = (header_t *) msgBuf;
 
