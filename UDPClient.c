@@ -10,6 +10,7 @@
 
 #define TIMEOUT_PERIOD 3
 #define LIMIT 5
+#define HEADER_SIZE 12
 
 sig_atomic_t sigalarm_flag;
 
@@ -74,13 +75,13 @@ int main(int argc, char *argv[]) {
   /* YOUR CODE HERE - construct Request message in msgBuf               */
   /* msgLen must contain the size (in bytes) of the Request msg         */
   char *userMsg = "wtja222";
-  msgLen = strlen(userMsg) + 12;
+  msgLen = strlen(userMsg) + HEADER_SIZE;
   int offset = sizeof(header_t);
   header_t *msgptr = (header_t *) msgBuf;
 
   if (argc == 4){
     msgptr->magic = htons(270);
-    msgptr->length = htons(12 + strlen(userMsg));
+    msgptr->length = htons(HEADER_SIZE + strlen(userMsg));
     msgptr->xactionid = 0xdeadbeef;
     msgptr->flags = 0x2E;
     msgptr->result = 0;
@@ -88,7 +89,7 @@ int main(int argc, char *argv[]) {
   }
   else {
     msgptr->magic = htons(270);
-    msgptr->length = htons(12 + strlen(userMsg));
+    msgptr->length = htons(HEADER_SIZE + strlen(userMsg));
     msgptr->xactionid = 0xdeadbeef;
     msgptr->flags = 0x2A;
     msgptr->result = 0;
